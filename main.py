@@ -224,6 +224,68 @@ def normalize(signal_windowed: list[dict]) -> list[dict]:
     return normalized_beats
 #==============================================================================================================================
 
+#--------------------------------------------------- PIPELINE FUNCTION --------------------------------------------------------
+def run_ecg_pipeline(patient_filepath: str, fs_target: int=500):
+    #-------------- 1. Load the patient
+    print(f"[1/10] Loading patient from {patient_filepath}...")
+    record = wfdb.rdrecord(patient_filepath)
+    p_signal = record.p_signal
+    channel = record.sig_name
+    print("Patient loaded correctly.")
+
+    #-------------- 2. Resample thesignal if necessary
+    if record.fs == 500:
+        resampled_signal = record
+        print(f"[2/10] Signal is at correct frequency of {record.fs}Hz")
+    else:
+        resampled_signal = resampling(signal=record, fs_signal=record.fs)
+        print(f"[2/10] Signas has been resampled from {record.fs}Hz to {fs_target}Hz.")
+
+    #-------------- 3. Reshape the signal
+    reshaped_signal = reshape(resampled_signal)
+    print(f"[3/10] The signal has been reshaped from {p_signal.shape} to {reshaped_signal.shape}")
+
+    #-------------- 4. Apply the filters
+    filtered_signal = apply_filters(signal_reshaped=reshaped_signal)
+    print(f"[4/10] Filters Butterworth (0.5Hz - 40Hz) and Notch (50Hz) applied.")
+
+    #-------------- 5. Detect the QRS peaks
+    qrs_peaks = find_QRS_peak(signal_filtered=filtered_signal)
+    print(f"[5/10] The QRS peaks has been detected.")
+
+    #-------------- 6. Segment the signal with a window size
+    windowed_signal = segmentation_window(signal_filtered=filtered_signal, peaks=qrs_peaks)
+    print(f"[6/10] Window segmentation applied.")
+
+    #-------------- 7. Normalization for all the values in the patients ecg
+    normalized_signal = normalize(signal_windowed=windowed_signal)
+    print(f"[7/10] Normalization of the ECG completed.")
+
+test = run_ecg_pipeline(ptb_xl_dir+"/"+TEST_PATIENT)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#==============================================================================================================================
+'''
+#------------------------------------------------------ TESTING ---------------------------------------------------------------
 final_signal = reshape(patient_values)
 
 print(f"The reshaped channel MLII: {final_signal[0]}")
@@ -252,8 +314,10 @@ print(f"The values of the windows: {windowed}")
 normalized = normalize(windowed)
 print(f"Values normalized max (MLII): {normalized[0]['MLII'].max():.4f}")
 print(f"Values normalized min (MLII): {normalized[0]['MLII'].min():.4f}")
-'''
+
 
 psignal_patient_reshaped = np.reshape(psignal_patient, )
 print(p)
+
+#==============================================================================================================================
 '''
