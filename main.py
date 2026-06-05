@@ -170,7 +170,58 @@ def find_QRS_peak(signal_filtered, fs: int=500) -> np.ndarray:
 
     return peaks
 
-def segmentation_window(signal_filtered, peaks: np.ndarray, )
+def segmentation_window(signal_filtered, peaks: np.ndarray, window_size: int=1500) -> list[dict]:
+    """divide the whole signal into windows of 1500 samples
+
+    Args:
+        signal_filtered (_type_): signal that has been filtered
+        peaks (np.ndarray): the peaks of the signal
+        window_size (int, optional): the size of the windows that the signal is going to be divided to. Defaults to 1500.
+
+    Returns:
+        list[dict]: a list containing dictionaries for each window
+    """
+    half_window = window_size // 2
+    num_samples = signal_filtered.shape[1]
+
+    window_beats = []
+    for idx, peak in enumerate(peaks):
+        if peak - half_window < 0 or peak + half_window > num_samples:
+            continue # límites de la ventana del ecg
+
+        ml2_window = signal_filtered[0, peak - half_window : peak + half_window]
+        v5_window = signal_filtered[1, peak - half_window : peak + half_window]
+
+        window_beats.append({
+            "peaks": peak,
+            "MLII": ml2_window,
+            "V5": v5_window
+        })
+
+    return window_beats
+
+def normalize(signal_windowed: list[dict]) -> list[dict]:
+    """normalize the values of the signal
+
+    Args:
+        signal_windowed (list[dict]): the signal that has been divided into window size
+
+    Returns:
+        list[dict]: the same signal list of dictionaries but values ranging from
+    """
+    epsilon = 1e-8
+    normalized_beats = []
+    for beat in signal_windowed:
+        ml2_normalized = (beat["MLII"] - np.mean(beat["MLII"]) / np.std(beat["MLII"]) + epsilon)
+        v5_normalized = (beat["V5"] - np.mean(beat["V5"]) / np.std(beat["V5"]) + epsilon)
+
+        normalized_beats.append({
+            "peaks": beat["peaks"],
+            "MLII": ml2_normalized,
+            "V5": v5_normalized
+        })
+
+    return normalized_beats
 #==============================================================================================================================
 
 final_signal = reshape(patient_values)
@@ -193,6 +244,14 @@ print(f"filtered signal MLII max: {filtered[0].max()}")
 print(f"filtered signal V5 max: {filtered[1].max()}")
 print(f"filtered signal MLII min: {filtered[0].min()}")
 print(f"filtered signal V5 min: {filtered[1].min()}")
+
+peaks = find_QRS_peak(filtered)
+windowed = segmentation_window(filtered, peaks)
+print(f"The values of the windows: {windowed}")
+
+normalized = normalize(windowed)
+print(f"Values normalized max (MLII): {normalized[0]['MLII'].max():.4f}")
+print(f"Values normalized min (MLII): {normalized[0]['MLII'].min():.4f}")
 '''
 
 psignal_patient_reshaped = np.reshape(psignal_patient, )
